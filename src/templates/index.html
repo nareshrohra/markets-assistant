@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Assistant (PoC)</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.2.0/css/bootstrap.min.css">
+	<style>
+		/* Chatbot container */
+		.chatbot-container {
+			border: 1px solid #ccc;
+			background-color: #f1f1f1;
+			border-radius: 5px;
+			padding: 10px;
+			margin: 10px 0;
+			overflow: auto;
+			min-height: 400px;
+		}
+
+		/* Chatbot messages */
+		.chatbot-message {
+			background-color: #4CAF50;
+			color: white;
+			border-radius: 5px;
+			padding: 10px;
+			margin: 10px 0;
+			clear: both;
+		}
+
+		/* User messages */
+		.user-message {
+			background-color: #ccc;
+			border-radius: 5px;
+			padding: 10px;
+			margin: 10px 0;
+			clear: both;
+		}
+	</style>
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="row justify-content-center">
+			<div class="col-md-6">
+				<div class="row">
+					<div class="col-md-12">
+						<div id="divChatbotContainer" class="chatbot-container">
+							<div class="chatbot-message">Hi! I'm an Assistant</div>
+						</div>
+					</div>
+				</div>
+				<form>
+					<div class="row">
+						<div class="col-md-10">
+								<input id="txtQuestion" type="text" class="form-control" placeholder="Type your message here">
+						</div>
+						<div class="col-md-1 d-flex align-items-center">
+							<div class="spinner-border ml-auto" role="status" aria-hidden="true" style="display:none"></div>
+						</div>
+						<div class="col-md-1 text-right">
+							<button type="submit" class="btn btn-primary" onclick="return onSubmitQuestion()">Send</button>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="col-md-3 mt-5">
+				<div class="row">
+					<div class="col-md-12">
+						<label class="mr-1">Data Type</label>
+						<select class="form-select" id="ddDatasetType" onchange="onDatasetTypeChange(this)">
+							<option value="historical" selected>Historical</option>
+							<option value="daily">Daily</option>
+						</select>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-md-12">
+						<label>Dataset</label>
+						<select class="form-select mt-5" id="ddDatasetName">
+						</select>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+  <script>
+		const sources = {
+			"historical": [{
+				"name": "Indices",
+				"key": "Indices"
+			},{
+				"name": "Equities",
+				"key": "Equities"
+			}],
+			"daily": []
+		};
+
+		function onDatasetTypeChange() {
+			const datasetType = $('#ddDatasetType').val(),
+			ddDatasetName = $('#ddDatasetName');
+			ddDatasetName.html('');
+			$.each(sources[datasetType], (index, option) => {
+				ddDatasetName.append($('<option>', {
+						value: option.key,
+						text: option.name
+					}));
+			});
+		}
+
+		onDatasetTypeChange();
+
+    function onSubmitQuestion() {
+      const question = $('#txtQuestion').val(),
+			datasetType = $('#ddDatasetType').val(),
+				datasetName = $('#ddDatasetName').val();
+			if (question.length) {
+				$('.spinner-border').show();
+				appendContent(true, question);
+				fetch('./api/qna', {
+					method: 'post',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						"question": question,
+						"datasetType": datasetType,
+						"datasetName": datasetName
+					})
+				})
+				.then(response => {
+					$('.spinner-border').hide();
+					if (response.status == 200) {
+						response.text()
+							.then(data => {
+								appendContent(false, data.toString());
+								document.getElementById('txtQuestion').value = '';
+							});
+					} else {
+						appendContent(false, "Sorry, we cannot asnwer your question! Some error occured.")
+					}
+				})
+				.catch(ex => {
+					$('.spinner-border').hide();
+					console.error(ex);
+				});
+			}
+			return false;
+    }
+
+    function appendContent(isUserMessage, message) {
+      const container = $('#divChatbotContainer');
+			message = message.replace(/\\n/g, '');
+      let elementHtml = '';
+      if (isUserMessage) {
+        elementHtml = `<div class="user-message">${message}</div>`;
+      } else {
+        elementHtml = `<div class="chatbot-message">${message}</div>`;
+      }
+      container.append(elementHtml);
+    }
+  </script>
+</body>
+</html>
